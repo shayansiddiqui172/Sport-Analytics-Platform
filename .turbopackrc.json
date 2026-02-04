@@ -1,0 +1,9 @@
+{
+  "turbo": {
+    "tasks": {
+      "dev": {
+        "cache": false
+      }
+    }
+  }
+}

@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+:root {
+  /* Dark Theme - Default */
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --surface: #141414;
+  --surface-elevated: #1a1a1a;
+  --surface-hover: #222222;
+  --border: #2a2a2a;
+  --border-light: #333333;
+
+  /* Colors */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --secondary: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+
+  /* Accents */
+  --accent-blue: #3b82f6;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-orange: #f97316;
+  --accent-purple: #a855f7;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Utility Classes */
+.glass {
+  background: rgba(20, 20, 20, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #9ca3af, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-positive {
+  color: var(--secondary);
+}
+
+.stat-negative {
+  color: var(--danger);
+}
+
+/* Animation Classes */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--primary);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--primary);
+  }
+}
+
+.live-indicator {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Hide scrollbar for ticker */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Layout stability for real-time data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.score-container {
+  min-width: 48px;
+  display: inline-block;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.percentage-container {
+  min-width: 56px;
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.contain-layout {
+  contain: layout style;
+}
+
+/* Smooth data transitions */
+.smooth-data-transition {
+  transition: width 0.5s ease-out, opacity 0.3s ease;
+}
+
+/* Live badge pulse */
+@keyframes live-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.live-badge-pulse {
+  animation: live-badge-pulse 1.5s ease-in-out infinite;
+}

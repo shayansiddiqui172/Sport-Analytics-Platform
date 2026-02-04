@@ -1,0 +1,22 @@
+
+> stats-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.5 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.75:3000
+- Environments: .env.local, .env
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 842ms
+prisma:query SELECT "public"."players"."id", "public"."players"."first_name", "public"."players"."last_name", "public"."players"."team_id", "public"."players"."position", "public"."players"."height", "public"."players"."weight", "public"."players"."jersey_number", "public"."players"."college", "public"."players"."country", "public"."players"."draft_year", "public"."players"."draft_round", "public"."players"."draft_number" FROM "public"."players" WHERE ("public"."players"."first_name" ILIKE $1 OR "public"."players"."last_name" ILIKE $2) ORDER BY "public"."players"."id" ASC LIMIT $3 OFFSET $4
+ GET /api/db/players/search?q=LeBron&limit=6 200 in 1409ms (compile: 139ms, proxy.ts: 50ms, render: 1221ms)
+prisma:query SELECT "public"."players"."id", "public"."players"."first_name", "public"."players"."last_name", "public"."players"."team_id", "public"."players"."position", "public"."players"."height", "public"."players"."weight", "public"."players"."jersey_number", "public"."players"."college", "public"."players"."country", "public"."players"."draft_year", "public"."players"."draft_round", "public"."players"."draft_number" FROM "public"."players" WHERE ("public"."players"."first_name" ILIKE $1 OR "public"."players"."last_name" ILIKE $2) ORDER BY "public"."players"."id" ASC LIMIT $3 OFFSET $4
+ GET /api/db/players/search?q=Giannis&limit=6 200 in 233ms (compile: 2ms, proxy.ts: 3ms, render: 227ms)
+ GET /players/bdl-237 200 in 841ms (compile: 701ms, proxy.ts: 4ms, render: 135ms)
+✓ Compiled in 208ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."players"."id", "public"."players"."first_name", "public"."players"."last_name", "public"."players"."team_id", "public"."players"."position", "public"."players"."height", "public"."players"."weight", "public"."players"."jersey_number", "public"."players"."college", "public"."players"."country", "public"."players"."draft_year", "public"."players"."draft_round", "public"."players"."draft_number" FROM "public"."players" WHERE ("public"."players"."first_name" ILIKE $1 OR "public"."players"."last_name" ILIKE $2) ORDER BY "public"."players"."id" ASC LIMIT $3 OFFSET $4
+ GET /api/db/players/search?q=Wayne&limit=6 200 in 524ms (compile: 6ms, proxy.ts: 6ms, render: 513ms)
+[?25h

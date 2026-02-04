@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/sync?type=quick",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/sync?type=full",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User & Social Features (Supabase Auth integration)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  comments  Comment[]
+  likes     Like[]
+  favorites Favorite[]
+
+  @@map("users")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  userId    String   @map("user_id")
+  playerId  Int?     @map("player_id")
+  gameId    Int?     @map("game_id")
+  teamId    Int?     @map("team_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes Like[]
+
+  @@map("comments")
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  commentId Int?     @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@map("likes")
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  playerId  Int?     @map("player_id")
+  teamId    Int?     @map("team_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, playerId])
+  @@unique([userId, teamId])
+  @@map("favorites")
+}
+
+// NBA Data Models - Cached from API
+model Player {
+  id           Int     @id
+  firstName    String  @map("first_name")
+  lastName     String  @map("last_name")
+  teamId       Int?    @map("team_id")
+  position     String?
+  height       String
+  weight       String
+  jerseyNumber String? @map("jersey_number")
+  college      String?
+  country      String?
+  draftYear    Int?    @map("draft_year")
+  draftRound   Int?    @map("draft_round")
+  draftNumber  Int?    @map("draft_number")
+
+  team      Team?             @relation(fields: [teamId], references: [id])
+  stats     PlayerStats[]
+  gameStats GamePlayerStats[]
+
+  @@map("players")
+}
+
+model Team {
+  id           Int    @id
+  name         String
+  city         String
+  abbreviation String
+  conference   String
+  division     String
+  logoUrl      String? @map("logo_url")
+
+  players   Player[]
+  homeGames Game[]   @relation("HomeTeam")
+  awayGames Game[]   @relation("AwayTeam")
+
+  @@map("teams")
+}
+
+enum GameStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINAL
+}
+
+model Game {
+  id           Int        @id
+  date         DateTime
+  season       Int
+  homeTeamId   Int        @map("home_team_id")
+  awayTeamId   Int        @map("away_team_id")
+  homeScore    Int?       @map("home_score")
+  awayScore    Int?       @map("away_score")
+  status       GameStatus @default(SCHEDULED)
+  period       Int        @default(0)
+  timeRemaining String?   @map("time_remaining")
+  postseason   Boolean    @default(false)
+
+  homeTeam    Team              @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team              @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  playerStats GamePlayerStats[]
+
+  @@map("games")
+}
+
+model GamePlayerStats {
+  id            Int @id @default(autoincrement())
+  gameId        Int @map("game_id")
+  playerId      Int @map("player_id")
+  minutes       Int
+  points        Int
+  rebounds      Int
+  assists       Int
+  steals        Int
+  blocks        Int
+  turnovers     Int
+  fgMade        Int @map("fg_made")
+  fgAttempts    Int @map("fg_attempts")
+  threeMade     Int @map("three_made")
+  threeAttempts Int @map("three_attempts")
+  ftMade        Int @map("ft_made")
+  ftAttempts    Int @map("ft_attempts")
+  oreb          Int
+  dreb          Int
+  personalFouls Int @map("personal_fouls")
+  plusMinus     Int @map("plus_minus")
+
+  game   Game   @relation(fields: [gameId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([gameId, playerId])
+  @@map("game_player_stats")
+}
+
+model PlayerStats {
+  id          Int    @id @default(autoincrement())
+  playerId    Int    @map("player_id")
+  season      String
+  gamesPlayed Int    @map("games_played")
+  ppg         Float
+  rpg         Float
+  apg         Float
+  spg         Float
+  bpg         Float
+  topg        Float  // turnovers per game
+  fgPct       Float  @map("fg_pct")
+  threePct    Float  @map("three_pct")
+  ftPct       Float  @map("ft_pct")
+  mpg         Float  // minutes per game
+  fgm         Float  @default(0) // field goals made per game
+  fga         Float  @default(0) // field goals attempted per game
+  fg3m        Float  @default(0) // 3-pointers made per game
+  fg3a        Float  @default(0) // 3-pointers attempted per game
+  ftm         Float  @default(0) // free throws made per game
+  fta         Float  @default(0) // free throws attempted per game
+  oreb        Float  @default(0) // offensive rebounds per game
+  dreb        Float  @default(0) // defensive rebounds per game
+  pf          Float  @default(0) // personal fouls per game
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([playerId, season])
+  @@map("player_stats")
+}
+
+// Cache management
+model CacheEntry {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  data      Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("cache_entries")
+}
