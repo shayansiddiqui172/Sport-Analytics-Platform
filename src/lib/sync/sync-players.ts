@@ -90,6 +90,36 @@ interface DashPlayerRow {
   PTS: number;
 }
 
+interface PlayerInfoRow {
+  PERSON_ID: number;
+  FIRST_NAME: string;
+  LAST_NAME: string;
+  DISPLAY_FIRST_LAST: string;
+  BIRTHDATE: string;
+  SCHOOL: string;
+  COUNTRY: string;
+  LAST_AFFILIATION: string;
+  HEIGHT: string;
+  WEIGHT: string;
+  SEASON_EXP: number;
+  JERSEY: string;
+  POSITION: string;
+  ROSTERSTATUS: string;
+  TEAM_ID: number;
+  TEAM_NAME: string;
+  TEAM_ABBREVIATION: string;
+  TEAM_CODE: string;
+  TEAM_CITY: string;
+  PLAYERCODE: string;
+  FROM_YEAR: number;
+  TO_YEAR: number;
+  DLEAGUE_FLAG: string;
+  GAMES_PLAYED_FLAG: string;
+  DRAFT_YEAR: string;
+  DRAFT_ROUND: string;
+  DRAFT_NUMBER: string;
+}
+
 async function fetchNBAStats(url: string): Promise<NBAStatsResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -104,6 +134,24 @@ async function fetchNBAStats(url: string): Promise<NBAStatsResponse> {
   } catch (e) {
     clearTimeout(timeout);
     throw e;
+  }
+}
+
+/**
+ * Fetch detailed player info/bio from NBA.com
+ */
+async function fetchPlayerInfo(playerId: number): Promise<PlayerInfoRow | null> {
+  try {
+    const url = `${NBA_STATS_BASE}/commonplayerinfo?PlayerID=${playerId}`;
+    const data = await fetchNBAStats(url);
+    const resultSet = data.resultSets?.find((rs) => rs.name === "CommonPlayerInfo");
+    if (!resultSet || resultSet.rowSet.length === 0) return null;
+    
+    const players = rowsToObjects<PlayerInfoRow>(resultSet.headers, resultSet.rowSet);
+    return players[0] || null;
+  } catch (e) {
+    console.warn(`[sync-players] Failed to fetch info for player ${playerId}:`, e);
+    return null;
   }
 }
 
@@ -206,6 +254,7 @@ export async function syncPlayers(
   // Step 4: Upsert into DB
   let playerCount = 0;
   let statsCount = 0;
+  let profileCount = 0;
 
   for (const [nbaId, entry] of playerMap) {
     const nameParts = entry.name.split(" ");
@@ -218,22 +267,45 @@ export async function syncPlayers(
       where: { id: entry.teamId },
     });
 
+    // Fetch detailed player info for profile data
+    const playerInfo = await fetchPlayerInfo(nbaId);
+    await new Promise((r) => setTimeout(r, 150)); // Rate limit
+    
+    if (playerInfo) {
+      profileCount++;
+    }
+
     // Upsert player — use NBA.com PLAYER_ID as the DB id
     await prisma.player.upsert({
       where: { id: nbaId },
       update: {
-        firstName,
-        lastName,
+        firstName: playerInfo?.FIRST_NAME || firstName,
+        lastName: playerInfo?.LAST_NAME || lastName,
         teamId: teamExists ? entry.teamId : null,
+        position: playerInfo?.POSITION || null,
+        height: playerInfo?.HEIGHT || "",
+        weight: playerInfo?.WEIGHT || "",
+        jerseyNumber: playerInfo?.JERSEY || "",
+        college: playerInfo?.SCHOOL || "",
+        country: playerInfo?.COUNTRY || "",
+        draftYear: playerInfo?.DRAFT_YEAR ? parseInt(playerInfo.DRAFT_YEAR) : null,
+        draftRound: playerInfo?.DRAFT_ROUND ? parseInt(playerInfo.DRAFT_ROUND) : null,
+        draftNumber: playerInfo?.DRAFT_NUMBER ? parseInt(playerInfo.DRAFT_NUMBER) : null,
       },
       create: {
         id: nbaId,
-        firstName,
-        lastName,
+        firstName: playerInfo?.FIRST_NAME || firstName,
+        lastName: playerInfo?.LAST_NAME || lastName,
         teamId: teamExists ? entry.teamId : null,
-        position: null,
-        height: "",
-        weight: "",
+        position: playerInfo?.POSITION || null,
+        height: playerInfo?.HEIGHT || "",
+        weight: playerInfo?.WEIGHT || "",
+        jerseyNumber: playerInfo?.JERSEY || "",
+        college: playerInfo?.SCHOOL || "",
+        country: playerInfo?.COUNTRY || "",
+        draftYear: playerInfo?.DRAFT_YEAR ? parseInt(playerInfo.DRAFT_YEAR) : null,
+        draftRound: playerInfo?.DRAFT_ROUND ? parseInt(playerInfo.DRAFT_ROUND) : null,
+        draftNumber: playerInfo?.DRAFT_NUMBER ? parseInt(playerInfo.DRAFT_NUMBER) : null,
       },
     });
     playerCount++;
@@ -294,7 +366,7 @@ export async function syncPlayers(
   }
 
   console.log(
-    `[sync-players] Upserted ${playerCount} players, ${statsCount} season stats`
+    `[sync-players] Upserted ${playerCount} players (${profileCount} with profiles), ${statsCount} season stats`
   );
   return { players: playerCount, stats: statsCount };
 }

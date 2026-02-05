@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import * as api from "@/lib/api/balldontlie";
 import type { PlayerStats, Player, Team, Game, GamePlayerStats, PaginatedResponse } from "@/types";
 import { fetchNBAOdds, fetchNBAScores, parseGameOdds } from "@/lib/predictions";
@@ -560,4 +561,54 @@ export function usePlayerSearch(query: string) {
     },
     enabled: query.length >= 2,
   });
+}
+// Pre-load all players for instant filtering (like top search bar)
+export function useAllPlayers() {
+  return useQuery({
+    queryKey: ["players", "all"],
+    queryFn: async () => {
+      try {
+        // Try to get all players from DB first
+        const db = await fetchDB<PaginatedResponse<Player>>(
+          `/api/db/players/search?q=&limit=1000`
+        );
+        if (db.data && db.data.length > 0) return db;
+      } catch {}
+      // Fallback to BDL API
+      return api.getPlayers({ per_page: 100 });
+    },
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
+    gcTime: 2 * 60 * 60 * 1000, // Keep in memory for 2 hours
+  });
+}
+
+// Filter pre-loaded players instantly (starts with 1 character)
+export function useInstantPlayerSearch(query: string) {
+  const { data: allPlayersData } = useAllPlayers();
+  
+  return useMemo(() => {
+    if (query.length < 1 || !allPlayersData?.data) {
+      return { data: { data: [] } };
+    }
+    
+    const lowerQuery = query.toLowerCase();
+    const filtered = allPlayersData.data.filter((player) =>
+      `${player.first_name} ${player.last_name}`.toLowerCase().includes(lowerQuery) ||
+      player.first_name.toLowerCase().includes(lowerQuery) ||
+      player.last_name.toLowerCase().includes(lowerQuery)
+    );
+    
+    return {
+      data: {
+        data: filtered.slice(0, 10),
+        meta: {
+          total_count: filtered.length,
+          current_page: 1,
+          total_pages: 1,
+          per_page: 10,
+          next_page: null,
+        },
+      },
+    };
+  }, [query, allPlayersData]);
 }

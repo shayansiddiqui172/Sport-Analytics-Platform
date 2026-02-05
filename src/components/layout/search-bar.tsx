@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Users, Loader2 } from "lucide-react";
 import { Input, TeamLogo, PlayerHeadshot } from "@/components/ui";
-import { usePlayerSearch, useTeams } from "@/hooks/useNBAData";
+import { useInstantPlayerSearch, useTeams } from "@/hooks/useNBAData";
 import { useNBAPlayerId } from "@/hooks/useNBAStats";
 import { cn } from "@/lib/utils/cn";
 
@@ -20,7 +20,7 @@ export function SearchBar({ className, onClose }: SearchBarProps) {
   const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const { data: playersData, isLoading: playersLoading } = usePlayerSearch(query);
+  const { data: playersData } = useInstantPlayerSearch(query);
   const { data: teamsData } = useTeams();
 
   const players = playersData?.data || [];
@@ -28,7 +28,7 @@ export function SearchBar({ className, onClose }: SearchBarProps) {
 
   // PERF: Memoize teams filtering to prevent recomputation on every render
   const teams = useMemo(() => {
-    if (query.length < 2) return [];
+    if (query.length < 1) return [];
     const lowerQuery = query.toLowerCase();
     return allTeams.filter(
       (team) =>
@@ -99,19 +99,13 @@ export function SearchBar({ className, onClose }: SearchBarProps) {
         placeholder="Search players, teams..."
         value={query}
         onChange={(e) => handleInputChange(e.target.value)}
-        onFocus={() => query.length >= 2 && setShowResults(true)}
+        onFocus={() => query.length >= 1 && setShowResults(true)}
         onKeyDown={handleKeyDown}
-        leftIcon={
-          playersLoading && query.length >= 2 ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Search className="w-4 h-4" />
-          )
-        }
+        leftIcon={<Search className="w-4 h-4" />}
         className="h-9 text-sm"
       />
 
-      {showResults && query.length >= 2 && (
+      {showResults && query.length >= 1 && (
         <div className="absolute z-50 w-full mt-2 bg-surface border border-border rounded-lg shadow-lg max-h-96 overflow-y-auto">
           {hasResults ? (
             <div className="py-2">

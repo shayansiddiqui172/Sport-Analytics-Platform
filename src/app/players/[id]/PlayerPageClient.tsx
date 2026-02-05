@@ -466,26 +466,26 @@ export default function PlayerPageClient({ playerId, initialPlayer }: PlayerPage
                     label="Minutes"
                     value={(parseFloat(displayAverages.min) || 0).toFixed(1)}
                   />
-                  <DetailRow label="Steals" value={displayAverages.stl.toFixed(1)} />
-                  <DetailRow label="Blocks" value={displayAverages.blk.toFixed(1)} />
+                  <DetailRow label="Steals" value={(displayAverages.stl || 0).toFixed(1)} />
+                  <DetailRow label="Blocks" value={(displayAverages.blk || 0).toFixed(1)} />
                   <DetailRow
                     label="Turnovers"
-                    value={displayAverages.turnover.toFixed(1)}
+                    value={(displayAverages.turnover || 0).toFixed(1)}
                   />
-                  <DetailRow label="Off Reb" value={displayAverages.oreb.toFixed(1)} />
-                  <DetailRow label="Def Reb" value={displayAverages.dreb.toFixed(1)} />
-                  <DetailRow label="Personal Fouls" value={displayAverages.pf.toFixed(1)} />
+                  <DetailRow label="Off Reb" value={(displayAverages.oreb || 0).toFixed(1)} />
+                  <DetailRow label="Def Reb" value={(displayAverages.dreb || 0).toFixed(1)} />
+                  <DetailRow label="Personal Fouls" value={(displayAverages.pf || 0).toFixed(1)} />
                   <DetailRow
                     label="FGM / FGA"
-                    value={`${displayAverages.fgm.toFixed(1)} / ${displayAverages.fga.toFixed(1)}`}
+                    value={`${(displayAverages.fgm || 0).toFixed(1)} / ${(displayAverages.fga || 0).toFixed(1)}`}
                   />
                   <DetailRow
                     label="3PM / 3PA"
-                    value={`${displayAverages.fg3m.toFixed(1)} / ${displayAverages.fg3a.toFixed(1)}`}
+                    value={`${(displayAverages.fg3m || 0).toFixed(1)} / ${(displayAverages.fg3a || 0).toFixed(1)}`}
                   />
                   <DetailRow
                     label="FTM / FTA"
-                    value={`${displayAverages.ftm.toFixed(1)} / ${displayAverages.fta.toFixed(1)}`}
+                    value={`${(displayAverages.ftm || 0).toFixed(1)} / ${(displayAverages.fta || 0).toFixed(1)}`}
                   />
                 </div>
               ) : (
