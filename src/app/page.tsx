@@ -15,10 +15,10 @@ import {
 import { Header } from "@/components/layout/header";
 import { GameTicker } from "@/components/games/game-ticker";
 import { Button, Card, CardContent, Badge, TeamLogo } from "@/components/ui";
-import { useTodayGames, useTeams } from "@/hooks/useNBAData";
+import { useLiveScores, useTeams } from "@/hooks/useNBAData";
 
 export default function Home() {
-  const { data: gamesData, isLoading: gamesLoading } = useTodayGames();
+  const { data: gamesData, isLoading: gamesLoading, hasLiveGames, isLive } = useLiveScores();
   const { data: teamsData } = useTeams();
 
   const games = gamesData?.data || [];
@@ -76,7 +76,13 @@ export default function Home() {
                 <h2 className="text-lg font-semibold">Today&apos;s Games</h2>
                 {games.some((g) => g.status === "in_progress") && (
                   <Badge variant="live" size="sm">
-                    LIVE
+                    <span className="relative flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                      LIVE
+                    </span>
                   </Badge>
                 )}
               </div>
@@ -87,7 +93,7 @@ export default function Home() {
                 View All Games
               </Link>
             </div>
-            <GameTicker games={games} isLoading={gamesLoading} />
+            <GameTicker games={games} isLoading={gamesLoading} isLive={isLive} />
           </div>
         </section>
 

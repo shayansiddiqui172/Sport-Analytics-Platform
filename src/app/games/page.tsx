@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Calendar, TrendingUp } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { Header } from "@/components/layout/header";
 import { Button, Card, CardContent, Badge, Skeleton, TeamLogo } from "@/components/ui";
-import { useGames, useNBAOdds } from "@/hooks/useNBAData";
+import { useGames, useNBAOdds, useLiveScores } from "@/hooks/useNBAData";
 import { cn } from "@/lib/utils/cn";
 import { getTeamPairColors } from "@/lib/team-colors";
 import type { Game } from "@/types";
@@ -16,15 +16,24 @@ import type { GameOdds } from "@/lib/predictions";
 export default function GamesPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateString = format(selectedDate, "yyyy-MM-dd");
+  const todayString = format(new Date(), "yyyy-MM-dd");
+  const isToday = dateString === todayString;
 
-  const { data: gamesData, isLoading } = useGames({
+  // Use live scores for today, DB/BDL for other dates
+  const liveScores = useLiveScores();
+  const historicalGames = useGames({
     dates: [dateString],
   });
 
   const { data: oddsData } = useNBAOdds();
 
-  const games = gamesData?.data || [];
+  // When viewing today, prefer live data
+  const games = isToday
+    ? (liveScores.data?.data || [])
+    : (historicalGames.data?.data || []);
+  const isLoading = isToday ? liveScores.isLoading : historicalGames.isLoading;
   const allOdds = oddsData || [];
+  const hasLiveGames = isToday && liveScores.hasLiveGames;
 
   // Build a lookup from team names → odds for quick matching
   const oddsMap = useMemo(() => {
@@ -49,7 +58,20 @@ export default function GamesPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">NBA Games</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold">NBA Games</h1>
+            {hasLiveGames && (
+              <Badge variant="live" size="sm">
+                <span className="relative flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                  </span>
+                  LIVE
+                </span>
+              </Badge>
+            )}
+          </div>
           <p className="text-text-secondary">
             Live scores, box scores, and game schedules
           </p>
@@ -137,8 +159,20 @@ const GameCard = memo(function GameCard({
               <div className="flex items-center gap-2">
                 {isLive && (
                   <Badge variant="live" size="sm">
-                    LIVE - Q{game.period}
+                    <span className="relative flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                      LIVE
+                    </span>
                   </Badge>
+                )}
+                {isLive && (
+                  <span className="text-xs text-text-muted font-medium tabular-nums">
+                    {game.period <= 4 ? `Q${game.period}` : game.period === 5 ? "OT" : `${game.period - 4}OT`}
+                    {game.time ? ` ${game.time}` : ""}
+                  </span>
                 )}
                 {isFinal && <Badge variant="default">Final</Badge>}
                 {!isLive && !isFinal && (

@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, memo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button, Badge, SkeletonGameCard, TeamLogo } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 import type { Game } from "@/types";
@@ -10,9 +10,10 @@ import type { Game } from "@/types";
 interface GameTickerProps {
   games: Game[];
   isLoading?: boolean;
+  isLive?: boolean; // Whether data is from live scoreboard
 }
 
-export function GameTicker({ games, isLoading }: GameTickerProps) {
+export function GameTicker({ games, isLoading, isLive }: GameTickerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // PERF: Memoize scroll handler to prevent recreation on every render
@@ -90,13 +91,12 @@ const GameCard = memo(function GameCard({ game }: { game: Game }) {
   const isLive = game.status === "in_progress";
   const isFinal = game.status === "final";
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+  /** Format period + clock for live games */
+  const getLiveStatusText = () => {
+    if (!isLive) return "";
+    const period = game.period <= 4 ? `Q${game.period}` : game.period === 5 ? "OT" : `${game.period - 4}OT`;
+    if (game.time) return `${period} ${game.time}`;
+    return period;
   };
 
   return (
@@ -113,11 +113,17 @@ const GameCard = memo(function GameCard({ game }: { game: Game }) {
       {/* Status */}
       <div className="flex justify-between items-center mb-4">
         <span className="text-xs text-text-muted">
-          {isFinal ? "Final" : isLive ? `Q${game.period}` : formatTime(game.date)}
+          {isFinal ? "Final" : isLive ? getLiveStatusText() : game.time}
         </span>
         {isLive && (
           <Badge variant="live" size="sm">
-            LIVE
+            <span className="relative flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+              </span>
+              LIVE
+            </span>
           </Badge>
         )}
         {isFinal && <Badge variant="default" size="sm">Final</Badge>}
@@ -129,11 +135,13 @@ const GameCard = memo(function GameCard({ game }: { game: Game }) {
           team={game.visitor_team}
           score={game.visitor_team_score}
           isWinner={isFinal && game.visitor_team_score > game.home_team_score}
+          isLive={isLive}
         />
         <TeamRow
           team={game.home_team}
           score={game.home_team_score}
           isWinner={isFinal && game.home_team_score > game.visitor_team_score}
+          isLive={isLive}
         />
       </div>
     </motion.a>
@@ -145,10 +153,12 @@ const TeamRow = memo(function TeamRow({
   team,
   score,
   isWinner,
+  isLive,
 }: {
   team: Game["home_team"];
   score: number;
   isWinner: boolean;
+  isLive?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between">
@@ -167,14 +177,18 @@ const TeamRow = memo(function TeamRow({
           {team.city} {team.name}
         </span>
       </div>
-      <span
+      <motion.span
+        key={score}
+        initial={isLive ? { scale: 1.3, color: "rgb(34, 197, 94)" } : false}
+        animate={{ scale: 1, color: isWinner ? "rgb(255,255,255)" : "rgb(156,163,175)" }}
+        transition={{ duration: 0.5 }}
         className={cn(
           "text-xl font-bold tabular-nums",
           isWinner ? "text-text-primary" : "text-text-secondary"
         )}
       >
         {score || "-"}
-      </span>
+      </motion.span>
     </div>
   );
 });

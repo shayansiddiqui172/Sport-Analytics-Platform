@@ -21,3 +21,15 @@ A modern web application for viewing and comparing NBA player statistics, built 
 - **Animations**: Framer Motion
 - **Charts**: Recharts
 
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+ 
+- PostgreSQL database
+- NBA Stats API access
+
+
+## Author
+
+Shayan Siddiqui

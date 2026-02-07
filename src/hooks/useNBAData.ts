@@ -204,6 +204,59 @@ export function useTodayGames() {
   });
 }
 
+/**
+ * Hook for live game scores.
+ * Polls NBA.com scoreboard every 30s ONLY when games are in progress.
+ * Stops polling when all games are final or none are scheduled.
+ * Falls back to DB data on failure.
+ */
+export function useLiveScores() {
+  const today = new Date().toISOString().split("T")[0];
+  const fallback = useTodayGames();
+
+  const liveQuery = useQuery({
+    queryKey: ["live-scores", today],
+    queryFn: async () => {
+      const res = await fetch(`/api/live/scores?date=${today}`);
+      if (!res.ok) throw new Error(`Live scores API ${res.status}`);
+      return res.json() as Promise<{
+        data: Game[];
+        meta: { has_live_games: boolean; total_count: number };
+      }>;
+    },
+    // Dynamic refetch: 30s when live games exist, stop when all done
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.data?.length) return 30_000; // Keep polling until we get data
+      const hasLive = data.data.some(
+        (g: Game) => g.status === "in_progress"
+      );
+      const hasScheduled = data.data.some(
+        (g: Game) => g.status === "scheduled"
+      );
+      // Poll every 30s if games are live, every 5 min if games are scheduled but not started
+      if (hasLive) return 30_000;
+      if (hasScheduled) return 5 * 60_000;
+      return false; // All games final — stop polling
+    },
+    refetchIntervalInBackground: false,
+    staleTime: 10_000,
+    gcTime: 60_000,
+  });
+
+  // Use live data if available, fall back to DB data
+  const games = liveQuery.data?.data ?? fallback.data?.data ?? [];
+  const isLoading = liveQuery.isLoading && fallback.isLoading;
+  const hasLiveGames = games.some((g) => g.status === "in_progress");
+
+  return {
+    data: { data: games },
+    isLoading,
+    hasLiveGames,
+    isLive: liveQuery.isSuccess, // true when using real-time data
+  };
+}
+
 export function useGame(id: number) {
   return useQuery({
     queryKey: ["game", id],
@@ -553,9 +606,28 @@ export function usePlayerSearch(query: string) {
     queryFn: async () => {
       try {
         const db = await fetchDB<PaginatedResponse<Player>>(
-          `/api/db/players/search?q=${encodeURIComponent(query)}&limit=10`
+          `/api/db/players/search?q=${encodeURIComponent(query)}&limit=50`
         );
-        if (db.data && db.data.length > 0) return db;
+        if (db.data && db.data.length > 0) {
+          // Deduplicate by full name, keeping best entry
+          const deduped = new Map<string, Player>();
+          
+          for (const player of db.data) {
+            const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+            const existing = deduped.get(fullName);
+            
+            // Always prefer the player with the higher ID
+            // Higher IDs (>100000) are NBA.com API IDs from the sync which have stats data
+            // Lower IDs (<100) are old internal DB IDs without stats
+            if (!existing || player.id > existing.id) {
+              deduped.set(fullName, player);
+            }
+          }
+          
+          db.data = Array.from(deduped.values()).slice(0, 10);
+          db.meta.total_count = db.data.length;
+          return db;
+        }
       } catch {}
       return api.getPlayers({ search: query, per_page: 10 });
     },
@@ -598,11 +670,28 @@ export function useInstantPlayerSearch(query: string) {
       player.last_name.toLowerCase().includes(lowerQuery)
     );
     
+    // Deduplicate by full name, keeping the best entry for each player
+    const deduped = new Map<string, Player>();
+    
+    for (const player of filtered) {
+      const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+      const existing = deduped.get(fullName);
+      
+      // Always prefer the player with the higher ID
+      // Higher IDs (>100000) are NBA.com API IDs from the sync which have stats data
+      // Lower IDs (<100) are old internal DB IDs without stats
+      if (!existing || player.id > existing.id) {
+        deduped.set(fullName, player);
+      }
+    }
+    
+    const uniqueFiltered = Array.from(deduped.values());
+    
     return {
       data: {
-        data: filtered.slice(0, 10),
+        data: uniqueFiltered.slice(0, 10),
         meta: {
-          total_count: filtered.length,
+          total_count: uniqueFiltered.length,
           current_page: 1,
           total_pages: 1,
           per_page: 10,

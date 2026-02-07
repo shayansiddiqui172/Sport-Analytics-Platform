@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       id: g.id,
       date: g.date.toISOString().split("T")[0],
       season: g.season,
-      status: g.status.toLowerCase().replace("_", " "),
+      status: g.status.toLowerCase().replace(" ", "_"),
       period: g.period,
       time: g.timeRemaining || "",
       postseason: g.postseason,
