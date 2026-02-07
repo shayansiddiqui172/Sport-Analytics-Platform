@@ -598,6 +598,28 @@ export function useNBAScores() {
   });
 }
 
+// ---------- Award Predictions ----------
+
+import type { AwardCategory } from "@/lib/predictions";
+
+export function useAwardPredictions() {
+  return useQuery({
+    queryKey: ["awards", "predictions"],
+    queryFn: async () => {
+      const res = await fetch("/api/predictions/awards");
+      if (!res.ok) throw new Error(`Award predictions API ${res.status}`);
+      return res.json() as Promise<{
+        data: AwardCategory[];
+        meta: { total_categories: number; categories_with_data: number; fetched_at: string };
+      }>;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
+    refetchInterval: 30 * 60 * 1000, // 30 minutes
+    refetchIntervalInBackground: false,
+  });
+}
+
 // ---------- Search ----------
 
 export function usePlayerSearch(query: string) {
