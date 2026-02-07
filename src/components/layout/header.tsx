@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, memo } from "react";
-import { Menu, X, User, Bell } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button, StatLineLogo } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
-import { useAuth } from "@/hooks/useAuth";
 import { SearchBar } from "./search-bar";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, loading } = useAuth();
   const pathname = usePathname();
 
   return (
@@ -37,34 +35,6 @@ export function Header() {
             <div className="hidden sm:block w-64">
               <SearchBar />
             </div>
-
-            {!loading && (
-              <>
-                {user ? (
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="p-2">
-                      <Bell className="w-5 h-5" />
-                    </Button>
-                    <Link href="/profile">
-                      <Button variant="ghost" size="sm" className="p-2">
-                        <User className="w-5 h-5" />
-                      </Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="hidden sm:flex items-center gap-2">
-                    <Link href="/login">
-                      <Button variant="ghost" size="sm">
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link href="/signup">
-                      <Button size="sm">Sign Up</Button>
-                    </Link>
-                  </div>
-                )}
-              </>
-            )}
 
             {/* Mobile Menu Button */}
             <Button
@@ -100,17 +70,6 @@ export function Header() {
               <MobileNavLink href="/all-time" active={pathname.startsWith("/all-time")} onClick={() => setIsMenuOpen(false)}>
                 Top 100
               </MobileNavLink>
-              {!user && (
-                <>
-                  <hr className="border-border my-2" />
-                  <MobileNavLink href="/login" onClick={() => setIsMenuOpen(false)}>
-                    Sign In
-                  </MobileNavLink>
-                  <MobileNavLink href="/signup" onClick={() => setIsMenuOpen(false)}>
-                    Sign Up
-                  </MobileNavLink>
-                </>
-              )}
             </nav>
           </div>
         )}

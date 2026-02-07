@@ -7,58 +7,37 @@ import { ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, Badge, Skeleton, TeamLogo } from "@/components/ui";
-import { useTeams, useGames } from "@/hooks/useNBAData";
+import { useTeams, useStandings } from "@/hooks/useNBAData";
 import { cn } from "@/lib/utils/cn";
 import { getTeamColor } from "@/lib/team-colors";
 import { getNBASeasonString, getNBASeason } from "@/lib/utils/nba-season";
 import { getFullTeamRosterStats } from "@/lib/api/nba-stats";
 import { getNBATeamId } from "@/lib/team-logos";
-import type { Team, Game } from "@/types";
+import type { Team } from "@/types";
 
 export default function TeamsPage() {
   const queryClient = useQueryClient();
   const { data: teamsData, isLoading: teamsLoading } = useTeams();
+  const { data: standingsData, isLoading: standingsLoading } = useStandings();
   const currentSeason = useMemo(() => getNBASeason(), []);
-  const gamesQueryParams = useMemo(
-    () => ({
-      seasons: [currentSeason],
-      per_page: 100,
-    }),
-    [currentSeason]
-  );
-  const { data: gamesData, isLoading: gamesLoading } = useGames(gamesQueryParams);
   const seasonString = useMemo(
     () => getNBASeasonString(currentSeason),
     [currentSeason]
   );
 
   const teams = teamsData?.data || [];
-  const games = gamesData?.data || [];
+  const standings = standingsData || [];
 
-  // Compute W-L records from season games
+  // Convert standings array to map for quick lookup
   const records = useMemo(() => {
     const map = new Map<number, { wins: number; losses: number }>();
-    for (const game of games) {
-      if (game.status !== "final") continue;
-
-      const homeWon = game.home_team_score > game.visitor_team_score;
-
-      // Home team
-      const hr = map.get(game.home_team.id) || { wins: 0, losses: 0 };
-      if (homeWon) hr.wins++;
-      else hr.losses++;
-      map.set(game.home_team.id, hr);
-
-      // Away team
-      const ar = map.get(game.visitor_team.id) || { wins: 0, losses: 0 };
-      if (!homeWon) ar.wins++;
-      else ar.losses++;
-      map.set(game.visitor_team.id, ar);
+    for (const standing of standings) {
+      map.set(standing.teamId, { wins: standing.wins, losses: standing.losses });
     }
     return map;
-  }, [games]);
+  }, [standings]);
 
-  const isLoading = teamsLoading || gamesLoading;
+  const isLoading = teamsLoading || standingsLoading;
 
   // Group teams by conference
   const eastTeams = teams.filter((t) => t.conference === "East");

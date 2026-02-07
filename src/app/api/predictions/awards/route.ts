@@ -10,8 +10,12 @@ import { fetchAllAwardPredictionsWithFallback, type AwardCategory } from "@/lib/
  *
  * Falls back to stat-based predictions when betting odds are unavailable.
  *
- * Cache: 30 minutes (futures odds don't change rapidly)
+ * Cache: 1 week (futures odds update slowly, conserves API quota)
  */
+
+// Revalidate every week to save API quota
+export const revalidate = 604800; // 7 days in seconds
+
 export async function GET() {
   try {
     const awards = await fetchAllAwardPredictionsWithFallback();
@@ -30,8 +34,8 @@ export async function GET() {
       },
       {
         headers: {
-          // 30 minute browser cache, 1 hour CDN cache
-          "Cache-Control": "public, max-age=1800, s-maxage=3600",
+          // 1 week cache (matches revalidate interval)
+          "Cache-Control": "public, max-age=604800, s-maxage=604800",
         },
       }
     );

@@ -134,14 +134,14 @@ const GameCard = memo(function GameCard({ game }: { game: Game }) {
         <TeamRow
           team={game.visitor_team}
           score={game.visitor_team_score}
-          isWinner={isFinal && game.visitor_team_score > game.home_team_score}
-          isLive={isLive}
+          isWinner={game.visitor_team_score > game.home_team_score}
+          isFinal={isFinal}
         />
         <TeamRow
           team={game.home_team}
           score={game.home_team_score}
-          isWinner={isFinal && game.home_team_score > game.visitor_team_score}
-          isLive={isLive}
+          isWinner={game.home_team_score > game.visitor_team_score}
+          isFinal={isFinal}
         />
       </div>
     </motion.a>
@@ -153,13 +153,14 @@ const TeamRow = memo(function TeamRow({
   team,
   score,
   isWinner,
-  isLive,
+  isFinal,
 }: {
   team: Game["home_team"];
   score: number;
   isWinner: boolean;
-  isLive?: boolean;
+  isFinal?: boolean;
 }) {
+  
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -171,15 +172,27 @@ const TeamRow = memo(function TeamRow({
         <span
           className={cn(
             "font-medium",
-            isWinner ? "text-text-primary" : "text-text-secondary"
+            isWinner ? "text-text-primary font-bold" : "text-text-secondary"
           )}
         >
           {team.city} {team.name}
         </span>
+        {isFinal && (
+          <span
+            className={cn(
+              "text-xs font-bold px-1.5 py-0.5 rounded",
+              isWinner
+                ? "bg-green-500/20 text-green-400"
+                : "bg-red-500/20 text-red-400"
+            )}
+          >
+            {isWinner ? "W" : "L"}
+          </span>
+        )}
       </div>
       <motion.span
         key={score}
-        initial={isLive ? { scale: 1.3, color: "rgb(34, 197, 94)" } : false}
+        initial={!isFinal && score > 0 ? { scale: 1.3, color: "rgb(34, 197, 94)" } : false}
         animate={{ scale: 1, color: isWinner ? "rgb(255,255,255)" : "rgb(156,163,175)" }}
         transition={{ duration: 0.5 }}
         className={cn(

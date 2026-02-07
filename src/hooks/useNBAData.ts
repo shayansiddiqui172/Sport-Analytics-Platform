@@ -155,6 +155,19 @@ export function useTeam(id: number) {
   });
 }
 
+export function useStandings() {
+  return useQuery({
+    queryKey: ["standings"],
+    queryFn: async () => {
+      const res = await fetchDB<{ data: Array<{ teamId: number; wins: number; losses: number }> }>(
+        "/api/db/teams/standings"
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 // ---------- Games ----------
 
 export function useGames(params?: Parameters<typeof api.getGames>[0]) {
@@ -200,7 +213,7 @@ export function useTodayGames() {
       } catch {}
       return api.getGames({ dates: [today] });
     },
-    refetchInterval: 30000,
+    refetchInterval: 15000, // Refresh every 15 seconds
   });
 }
 
@@ -224,23 +237,23 @@ export function useLiveScores() {
         meta: { has_live_games: boolean; total_count: number };
       }>;
     },
-    // Dynamic refetch: 30s when live games exist, stop when all done
+    // Dynamic refetch: 10s when live games exist, stop when all done
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (!data?.data?.length) return 30_000; // Keep polling until we get data
+      if (!data?.data?.length) return 15_000; // Keep polling until we get data
       const hasLive = data.data.some(
         (g: Game) => g.status === "in_progress"
       );
       const hasScheduled = data.data.some(
         (g: Game) => g.status === "scheduled"
       );
-      // Poll every 30s if games are live, every 5 min if games are scheduled but not started
-      if (hasLive) return 30_000;
-      if (hasScheduled) return 5 * 60_000;
+      // Poll every 10s if games are live, every 30s if games are scheduled but not started
+      if (hasLive) return 10_000;
+      if (hasScheduled) return 30_000;
       return false; // All games final — stop polling
     },
-    refetchIntervalInBackground: false,
-    staleTime: 10_000,
+    refetchIntervalInBackground: true, // Continue polling in background
+    staleTime: 5_000,
     gcTime: 60_000,
   });
 

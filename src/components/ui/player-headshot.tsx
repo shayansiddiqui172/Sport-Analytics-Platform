@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { getNBAHeadshotUrl, getNBAHeadshotUrlSmall } from "@/lib/player-headshots";
 import { getTeamColor } from "@/lib/team-colors";
@@ -55,30 +55,36 @@ export function PlayerHeadshot({
   className,
   priority = false,
 }: PlayerHeadshotProps) {
-  const [src, setSrc] = useState<string | null>(
-    () => getNBAHeadshotUrl(nbaPlayerId ?? null) ?? getNBAHeadshotUrlSmall(nbaPlayerId ?? null)
-  );
+  const [imgError, setImgError] = useState(false);
   const [fallbackAttempted, setFallbackAttempted] = useState(false);
+
+  // Reset error state when player changes
+  useEffect(() => {
+    setImgError(false);
+    setFallbackAttempted(false);
+  }, [nbaPlayerId]);
 
   const px = SIZE_MAP[size];
   const teamColor = teamAbbreviation ? getTeamColor(teamAbbreviation) : "#6366f1";
 
+  // Determine which source to use
+  const headshotUrl = nbaPlayerId 
+    ? (fallbackAttempted ? getNBAHeadshotUrlSmall(nbaPlayerId) : getNBAHeadshotUrl(nbaPlayerId))
+    : null;
+
   const handleError = () => {
-    if (!fallbackAttempted) {
+    if (!fallbackAttempted && nbaPlayerId) {
       // Try smaller headshot variant
-      const smallUrl = getNBAHeadshotUrlSmall(nbaPlayerId ?? null);
-      if (smallUrl && smallUrl !== src) {
-        setSrc(smallUrl);
-        setFallbackAttempted(true);
-        return;
-      }
+      setFallbackAttempted(true);
+      setImgError(false);
+    } else {
+      // All CDN attempts failed — show initials fallback
+      setImgError(true);
     }
-    // All CDN attempts failed — show initials fallback
-    setSrc(null);
   };
 
   // Render initials fallback
-  if (!src) {
+  if (!headshotUrl || imgError) {
     return (
       <div
         className={cn(
@@ -115,7 +121,7 @@ export function PlayerHeadshot({
       style={{ width: px, height: px }}
     >
       <Image
-        src={src}
+        src={headshotUrl}
         alt={`${firstName} ${lastName} headshot`}
         width={px}
         height={px}

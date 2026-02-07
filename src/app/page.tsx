@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Zap,
   Target,
-  Star,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { GameTicker } from "@/components/games/game-ticker";
@@ -202,39 +201,12 @@ export default function Home() {
             </div>
           </div>
         </section>
+      </main>
 
-        {/* CTA Section */}
-        <section className="py-16 sm:py-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Card className="bg-gradient-to-br from-primary/20 via-surface to-accent-purple/20 border-primary/30">
-              <CardContent className="py-12 text-center">
-                <Star className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-                  Join StatLine Today
-                </h2>
-                <p className="text-text-secondary max-w-lg mx-auto mb-6">
-                  Create an account to save your favorite players, leave comments,
-                  and get personalized stat alerts.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/signup">
-                    <Button size="lg">Create Free Account</Button>
-                  </Link>
-                  <Link href="/login">
-                    <Button variant="outline" size="lg">
-                      Sign In
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="border-t border-border py-12 bg-surface/50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+      {/* Footer */}
+      <footer className="border-t border-border py-12 bg-surface/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -283,27 +255,6 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-
-              <div>
-                <h3 className="font-semibold mb-4">Account</h3>
-                <ul className="space-y-2 text-sm text-text-secondary">
-                  <li>
-                    <Link href="/login" className="hover:text-text-primary transition-colors">
-                      Sign In
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/signup" className="hover:text-text-primary transition-colors">
-                      Sign Up
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/profile" className="hover:text-text-primary transition-colors">
-                      Profile
-                    </Link>
-                  </li>
-                </ul>
-              </div>
             </div>
 
             <div className="mt-8 pt-8 border-t border-border text-center text-sm text-text-muted">
@@ -311,10 +262,9 @@ export default function Home() {
             </div>
           </div>
         </footer>
-      </main>
-    </div>
-  );
-}
+      </div>
+    );
+  }
 
 function FeatureCard({
   icon,

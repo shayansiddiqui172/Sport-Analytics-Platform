@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Users, Loader2 } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { Input, TeamLogo, PlayerHeadshot } from "@/components/ui";
 import { useInstantPlayerSearch, useTeams } from "@/hooks/useNBAData";
 import { useNBAPlayerId } from "@/hooks/useNBAStats";
@@ -147,11 +147,6 @@ export function SearchBar({ className, onClose }: SearchBarProps) {
                   )}
                 </button>
               ))}
-            </div>
-          ) : playersLoading ? (
-            <div className="py-8 text-center">
-              <Loader2 className="w-6 h-6 animate-spin text-text-muted mx-auto mb-2" />
-              <p className="text-sm text-text-secondary">Searching...</p>
             </div>
           ) : (
             <div className="py-8 text-center">

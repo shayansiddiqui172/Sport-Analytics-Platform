@@ -1,4 +1,5 @@
-const ODDS_API_KEY = "8d44ebe102a2dd515dae520d700ec12d";
+const ODDS_API_KEY_PRIMARY = "8d44ebe102a2dd515dae520d700ec12d";
+const ODDS_API_KEY_SECONDARY = "fa9dc506b815c4565a3ed81a681c567a";
 const ODDS_BASE_URL = "https://api.the-odds-api.com/v4";
 const SPORT = "basketball_nba";
 
@@ -231,16 +232,36 @@ export function americanToProb(odds: number): number {
 
 /**
  * Fetch futures/outrights odds for a specific award market.
+ * Tries primary key first, then secondary key if quota exceeded.
  */
 export async function fetchAwardOdds(sportKey: string): Promise<OutrightEvent[]> {
-  const url = `${ODDS_BASE_URL}/sports/${sportKey}/odds?apiKey=${ODDS_API_KEY}&regions=us&markets=outrights&oddsFormat=american`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    // Some markets may not be available — return empty
-    if (res.status === 404) return [];
-    throw new Error(`Odds API error for ${sportKey}: ${res.status}`);
+  // Try primary key first
+  const primaryUrl = `${ODDS_BASE_URL}/sports/${sportKey}/odds?apiKey=${ODDS_API_KEY_PRIMARY}&regions=us&markets=outrights&oddsFormat=american`;
+  const primaryRes = await fetch(primaryUrl);
+  
+  if (primaryRes.ok) {
+    return primaryRes.json();
   }
-  return res.json();
+  
+  // If 404, market not available
+  if (primaryRes.status === 404) return [];
+  
+  // If quota exceeded (401 or 429), try secondary key
+  if (primaryRes.status === 401 || primaryRes.status === 429) {
+    console.log(`Primary API key quota exceeded for ${sportKey}, trying secondary key...`);
+    const secondaryUrl = `${ODDS_BASE_URL}/sports/${sportKey}/odds?apiKey=${ODDS_API_KEY_SECONDARY}&regions=us&markets=outrights&oddsFormat=american`;
+    const secondaryRes = await fetch(secondaryUrl);
+    
+    if (secondaryRes.ok) {
+      return secondaryRes.json();
+    }
+    
+    // If 404, market not available
+    if (secondaryRes.status === 404) return [];
+  }
+  
+  // Both keys failed
+  throw new Error(`Odds API error for ${sportKey}: ${primaryRes.status}`);
 }
 
 /**
@@ -471,6 +492,59 @@ export async function generateStatBasedPredictions(): Promise<{
 }
 
 /**
+ * Generate championship predictions based on current season standings.
+ */
+export async function generateChampionshipPredictions(): Promise<AwardCandidate[]> {
+  try {
+    // Fetch current standings from our database
+    const standingsRes = await fetch("http://localhost:3000/api/db/teams/standings");
+    if (!standingsRes.ok) {
+      console.error("Failed to fetch standings");
+      return [];
+    }
+    const standingsData = await standingsRes.json();
+    const standings = standingsData.data || [];
+    
+    // Fetch team names
+    const teamsRes = await fetch("http://localhost:3000/api/db/teams");
+    if (!teamsRes.ok) {
+      console.error("Failed to fetch teams");
+      return [];
+    }
+    const teamsData = await teamsRes.json();
+    const teams = teamsData.data || [];
+    
+    // Create team ID to name mapping
+    const teamMap = new Map(
+      teams.map((t: any) => [t.id, `${t.city} ${t.name}`])
+    );
+    
+    // Calculate championship scores based on win percentage and total wins
+    const teamScores = standings
+      .map((standing: any) => {
+        const totalGames = standing.wins + standing.losses;
+        if (totalGames === 0) return null;
+        
+        const winPct = standing.wins / totalGames;
+        // Score formula: win % heavily weighted + bonus for total wins
+        // Teams with better records and more total wins get higher scores
+        const score = (winPct * 100) + (standing.wins * 0.8);
+        
+        return {
+          name: teamMap.get(standing.teamId) || `Team ${standing.teamId}`,
+          score,
+        };
+      })
+      .filter((t: any) => t !== null && t.score > 0);
+    
+    return scoresToProbabilities(teamScores, 5);
+  } catch (error) {
+    console.error("Failed to generate championship predictions:", error);
+    return [];
+  }
+}
+
+/**
  * Fetch all award predictions, using stat-based as fallback.
  */
 export async function fetchAllAwardPredictionsWithFallback(): Promise<AwardCategory[]> {
@@ -479,6 +553,9 @@ export async function fetchAllAwardPredictionsWithFallback(): Promise<AwardCateg
   
   // Generate stat-based predictions for MVP fallback
   const statBased = await generateStatBasedPredictions();
+  
+  // Generate championship predictions from current standings
+  const championshipCandidates = await generateChampionshipPredictions();
   
   // Build final categories with fallbacks
   const result: AwardCategory[] = [];
@@ -493,8 +570,18 @@ export async function fetchAllAwardPredictionsWithFallback(): Promise<AwardCateg
         lastUpdate: new Date().toISOString(),
       });
     } else if (category.candidates.length > 0) {
-      result.push(category); // Has real odds
+      // Has real odds from API (primary or secondary key worked)
+      result.push(category);
+    } else if (category.key === "champion" && championshipCandidates.length > 0) {
+      // Fallback: Use standings-based championship predictions
+      result.push({
+        ...category,
+        candidates: championshipCandidates,
+        bookmaker: "Based on current season standings",
+        lastUpdate: new Date().toISOString(),
+      });
     } else if (category.key === "mvp" && statBased.mvp.length > 0) {
+      // Fallback: Use stats-based MVP predictions
       result.push({
         ...category,
         candidates: statBased.mvp,

@@ -136,14 +136,95 @@ export async function syncSeasonGames(
   season?: number
 ): Promise<{ synced: number }> {
   const s = season || getNBASeason();
-  const dates: string[] = [];
+  
+  // Use start and end date for efficient range querying
+  const seasonStart = `${s - 1}-10-15`; // October 15, 2024 for 2025 season
+  const today = new Date().toISOString().split("T")[0];
+  
+  console.log(`[sync-season-games] Syncing games from ${seasonStart} to ${today} for season ${s}`);
+  
+  let synced = 0;
+  let cursor: number | null = null;
+  let hasMore = true;
+  let pageCount = 0;
 
-  // Generate dates for the past 7 days
-  const today = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
-    dates.push(d.toISOString().split("T")[0]);
+  while (hasMore) {
+    try {
+      const params = new URLSearchParams({
+        "seasons[]": s.toString(),
+        start_date: seasonStart,
+        end_date: today,
+        per_page: "100",
+      });
+      
+      if (cursor) {
+        params.set("cursor", cursor.toString());
+      }
+
+      const response = await fetchBDL<{ data: BDLGame[]; meta: { next_cursor?: number } }>(
+        `/games?${params}`
+      );
+
+      const games = response.data;
+      pageCount++;
+      console.log(`[sync-season-games] Processing page ${pageCount} (${games.length} games)`);
+
+      for (const game of games) {
+        // Verify both teams exist in DB
+        const homeTeam = await prisma.team.findUnique({
+          where: { id: game.home_team.id },
+        });
+        const awayTeam = await prisma.team.findUnique({
+          where: { id: game.visitor_team.id },
+        });
+
+        if (!homeTeam || !awayTeam) {
+          console.warn(
+            `[sync-games] Skipping game ${game.id}: missing team(s) (home=${game.home_team.id}, away=${game.visitor_team.id})`
+          );
+          continue;
+        }
+
+        await prisma.game.upsert({
+          where: { id: game.id },
+          update: {
+            homeScore: game.home_team_score || null,
+            awayScore: game.visitor_team_score || null,
+            status: mapBDLStatus(game.status),
+            period: game.period || 0,
+            timeRemaining: game.time || null,
+          },
+          create: {
+            id: game.id,
+            date: new Date(game.date),
+            season: game.season,
+            homeTeamId: game.home_team.id,
+            awayTeamId: game.visitor_team.id,
+            homeScore: game.home_team_score || null,
+            awayScore: game.visitor_team_score || null,
+            status: mapBDLStatus(game.status),
+            period: game.period || 0,
+            timeRemaining: game.time || null,
+            postseason: game.postseason || false,
+          },
+        });
+        synced++;
+      }
+
+      // Check if there are more pages
+      hasMore = response.meta.next_cursor !== undefined && response.meta.next_cursor !== null;
+      cursor = response.meta.next_cursor !== undefined ? response.meta.next_cursor : null;
+
+      if (hasMore) {
+        console.log(`[sync-season-games] More pages available, continuing...`);
+        await new Promise((r) => setTimeout(r, 500)); // Rate limit protection
+      }
+    } catch (e) {
+      console.error(`[sync-season-games] Failed to sync games:`, e);
+      hasMore = false;
+    }
   }
 
-  return syncGames({ dates, season: s });
+  console.log(`[sync-season-games] Completed: Upserted ${synced} games across ${pageCount} pages`);
+  return { synced };
 }

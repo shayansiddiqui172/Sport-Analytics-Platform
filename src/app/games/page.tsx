@@ -196,7 +196,8 @@ const GameCard = memo(function GameCard({
               <TeamDisplay
                 team={game.visitor_team}
                 score={game.visitor_team_score}
-                isWinner={isFinal && game.visitor_team_score > game.home_team_score}
+                isWinner={game.visitor_team_score > game.home_team_score}
+                isFinal={isFinal}
               />
 
               {/* VS / Score */}
@@ -236,7 +237,8 @@ const GameCard = memo(function GameCard({
               <TeamDisplay
                 team={game.home_team}
                 score={game.home_team_score}
-                isWinner={isFinal && game.home_team_score > game.visitor_team_score}
+                isWinner={game.home_team_score > game.visitor_team_score}
+                isFinal={isFinal}
                 isHome
               />
             </div>
@@ -291,25 +293,42 @@ const TeamDisplay = memo(function TeamDisplay({
   team,
   score,
   isWinner,
+  isFinal,
   isHome,
 }: {
   team: Game["home_team"];
   score: number;
   isWinner: boolean;
+  isFinal?: boolean;
   isHome?: boolean;
 }) {
+  
   return (
     <div className={cn("flex items-center gap-3", isHome && "justify-end")}>
       {isHome && (
         <div className="text-right">
-          <p
-            className={cn(
-              "font-semibold",
-              isWinner ? "text-text-primary" : "text-text-secondary"
+          <div className="flex items-center justify-end gap-2">
+            <p
+              className={cn(
+                "font-semibold",
+                isWinner ? "text-text-primary" : "text-text-secondary"
+              )}
+            >
+              {team.city}
+            </p>
+            {isFinal && (
+              <span
+                className={cn(
+                  "text-xs font-bold px-1.5 py-0.5 rounded",
+                  isWinner
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-red-500/20 text-red-400"
+                )}
+              >
+                {isWinner ? "W" : "L"}
+              </span>
             )}
-          >
-            {team.city}
-          </p>
+          </div>
           <p
             className={cn(
               "text-lg font-bold",
@@ -330,14 +349,28 @@ const TeamDisplay = memo(function TeamDisplay({
 
       {!isHome && (
         <div>
-          <p
-            className={cn(
-              "font-semibold",
-              isWinner ? "text-text-primary" : "text-text-secondary"
+          <div className="flex items-center gap-2">
+            <p
+              className={cn(
+                "font-semibold",
+                isWinner ? "text-text-primary" : "text-text-secondary"
+              )}
+            >
+              {team.city}
+            </p>
+            {isFinal && (
+              <span
+                className={cn(
+                  "text-xs font-bold px-1.5 py-0.5 rounded",
+                  isWinner
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-red-500/20 text-red-400"
+                )}
+              >
+                {isWinner ? "W" : "L"}
+              </span>
             )}
-          >
-            {team.city}
-          </p>
+          </div>
           <p
             className={cn(
               "text-lg font-bold",
