@@ -109,10 +109,10 @@ async function syncPlayers(season) {
   const allPlayers = rowsToObjects(dashResultSet.headers, dashResultSet.rowSet);
   console.log(`[sync-players] Fetched ${allPlayers.length} players from NBA.com`);
 
-  // Get valid team IDs
-  const teams = await prisma.team.findMany({ select: { id: true } });
-  const validTeamIds = new Set(teams.map((t) => t.id));
-  console.log(`[sync-players] Found ${validTeamIds.size} valid teams in DB`);
+  // Get all teams and create mapping from NBA.com TEAM_ABBREVIATION to BDL team ID
+  const teams = await prisma.team.findMany({ select: { id: true, abbreviation: true } });
+  const teamAbbrToId = new Map(teams.map((t) => [t.abbreviation, t.id]));
+  console.log(`[sync-players] Found ${teams.length} teams in DB`);
 
   // Use bulk upserts via raw SQL for maximum performance
   // Process in batches of 100
@@ -128,7 +128,8 @@ async function syncPlayers(season) {
       const nameParts = p.PLAYER_NAME.split(" ");
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ") || "";
-      const teamId = validTeamIds.has(p.TEAM_ID) ? p.TEAM_ID : null;
+      // Map NBA.com TEAM_ABBREVIATION to our BDL team ID
+      const teamId = teamAbbrToId.get(p.TEAM_ABBREVIATION) || null;
 
       return `(${p.PLAYER_ID}, '${firstName.replace(/'/g, "''")}', '${lastName.replace(/'/g, "''")}', ${teamId || "NULL"}, '', '')`;
     });

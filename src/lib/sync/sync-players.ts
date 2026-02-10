@@ -201,9 +201,9 @@ export async function syncPlayers(
 
   console.log(`[sync-players] Fetched ${allPlayers.length} players from leaguedashplayerstats`);
 
-  // Get all valid team IDs in one query
-  const teams = await prisma.team.findMany({ select: { id: true } });
-  const validTeamIds = new Set(teams.map(t => t.id));
+  // Get all teams and create mapping from NBA.com abbreviation to BDL team ID
+  const teams = await prisma.team.findMany({ select: { id: true, abbreviation: true } });
+  const teamAbbrToId = new Map(teams.map(t => [t.abbreviation, t.id]));
 
   // Process players in batches of 50 to avoid timeout
   const BATCH_SIZE = 50;
@@ -218,7 +218,8 @@ export async function syncPlayers(
         const nameParts = p.PLAYER_NAME.split(" ");
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
-        const teamId = validTeamIds.has(p.TEAM_ID) ? p.TEAM_ID : null;
+        // Map NBA.com TEAM_ABBREVIATION to our BDL team ID
+        const teamId = teamAbbrToId.get(p.TEAM_ABBREVIATION) || null;
 
         await tx.player.upsert({
           where: { id: p.PLAYER_ID },
