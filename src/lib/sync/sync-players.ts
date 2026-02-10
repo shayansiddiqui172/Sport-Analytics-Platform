@@ -122,7 +122,7 @@ interface PlayerInfoRow {
 
 async function fetchNBAStats(url: string): Promise<NBAStatsResponse> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 45000); // 45s for large player data
   try {
     const res = await fetch(url, {
       headers: NBA_HEADERS,
