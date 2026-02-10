@@ -87,13 +87,11 @@ export async function runFullSync(): Promise<SyncResult> {
   }
 
   // 2. Sync players + season stats
-  try {
-    results.players = await syncPlayers();
-    await updateSyncTimestamp("sync:players");
-  } catch (e: any) {
-    errors.push(`players: ${e.message}`);
-    console.error("[full-sync] Players sync failed:", e);
-  }
+  // SKIPPED: Player sync now runs directly in GitHub Actions via scripts/sync-players.mjs
+  // with DIRECT_URL connection to avoid Vercel's 60s timeout on 500+ player upserts.
+  // See .github/workflows/sync.yml for the player sync step.
+  console.log("[full-sync] Skipping player sync (runs in GitHub Actions)");
+  results.players = { skipped: true, reason: "Runs in GitHub Actions" };
 
   // 3. Sync games (wider date range)
   try {
