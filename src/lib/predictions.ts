@@ -1,5 +1,6 @@
 const ODDS_API_KEY_PRIMARY = "8d44ebe102a2dd515dae520d700ec12d";
 const ODDS_API_KEY_SECONDARY = "fa9dc506b815c4565a3ed81a681c567a";
+const ODDS_API_KEY = ODDS_API_KEY_PRIMARY;
 const ODDS_BASE_URL = "https://api.the-odds-api.com/v4";
 const SPORT = "basketball_nba";
 
