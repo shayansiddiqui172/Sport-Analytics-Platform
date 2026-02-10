@@ -18,6 +18,7 @@ import {
 import { useGame, useStats, useNBAOdds } from "@/hooks/useNBAData";
 import { cn } from "@/lib/utils/cn";
 import { getTeamPairColors } from "@/lib/team-colors";
+import type { GameOdds } from "@/lib/predictions";
 
 interface GamePageClientProps {
   gameId: number;
@@ -46,7 +47,7 @@ export default function GamePageClient({ gameId }: GamePageClientProps) {
     const visitorTeamName = `${game.visitor_team.city} ${game.visitor_team.name}`;
 
     return oddsData.find(
-      (o) =>
+      (o: GameOdds) =>
         (o.homeTeam === homeTeamName && o.awayTeam === visitorTeamName) ||
         (o.homeTeam === visitorTeamName && o.awayTeam === homeTeamName)
     );
