@@ -4,7 +4,6 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import * as api from "@/lib/api/balldontlie";
 import type { PlayerStats, Player, Team, Game, GamePlayerStats, PaginatedResponse } from "@/types";
-import { fetchNBAOdds, fetchNBAScores, parseGameOdds } from "@/lib/predictions";
 import { getNBASeason, getNBASeasonString } from "@/lib/utils/nba-season";
 
 // ---------- helpers ----------
@@ -594,8 +593,9 @@ export function useNBAOdds() {
   return useQuery({
     queryKey: ["odds", "nba"],
     queryFn: async () => {
-      const events = await fetchNBAOdds();
-      return events.map(parseGameOdds);
+      const res = await fetch("/api/live/odds");
+      if (!res.ok) throw new Error("Failed to fetch odds");
+      return res.json();
     },
     staleTime: 10 * 60 * 1000,
     refetchInterval: 10 * 60 * 1000,
