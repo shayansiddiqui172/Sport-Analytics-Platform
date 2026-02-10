@@ -50,7 +50,7 @@ export default function TeamPageClient({ teamId }: TeamPageClientProps) {
   // Fetch team with full roster from DB (primary source)
   const { data: teamData, isLoading: teamLoading } = useTeam(teamId);
   const team = teamData?.data;
-  const dbRoster = team?.players || [];
+  const dbRoster = (team as any)?.players || [];
 
   // NBA.com roster (fallback)
   const { data: nbaRoster, isLoading: nbaRosterLoading } = useFullTeamRoster(
