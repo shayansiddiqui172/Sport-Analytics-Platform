@@ -2,16 +2,24 @@ name: Sync NBA Data
 
 on:
   schedule:
-    # Run every 30 minutes during NBA season (Oct-June)
+    # Quick sync: Run every 30 minutes during NBA season
     - cron: '*/30 * * * *'
+    # Full sync: Run once daily at 6 AM UTC
+    - cron: '0 6 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub UI
+    inputs:
+      sync_type:
+        description: 'Sync type (quick or full)'
+        required: false
+        default: 'quick'
 
 jobs:
-  sync:
+  quick-sync:
     runs-on: ubuntu-latest
+    if: github.event.schedule == '*/30 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync_type == 'quick')
     
     steps:
-      - name: Sync NBA Stats
+      - name: Quick Sync NBA Stats
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
@@ -21,8 +29,29 @@ jobs:
       
       - name: Log sync completion
         if: success()
-        run: echo "NBA data sync completed successfully"
+        run: echo "Quick sync completed successfully"
       
       - name: Log sync failure
         if: failure()
-        run: echo "NBA data sync failed - check your API endpoints"
+        run: echo "Quick sync failed - check your API endpoints"
+
+  full-sync:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync_type == 'full')
+    
+    steps:
+      - name: Full Sync NBA Stats
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.VERCEL_PRODUCTION_URL }}/api/sync?type=full"
+        continue-on-error: true
+      
+      - name: Log sync completion
+        if: success()
+        run: echo "Full sync completed successfully"
+      
+      - name: Log sync failure
+        if: failure()
+        run: echo "Full sync failed - check your API endpoints"
