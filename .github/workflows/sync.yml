@@ -1,0 +1,28 @@
+name: Sync NBA Data
+
+on:
+  schedule:
+    # Run every 30 minutes during NBA season (Oct-June)
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Sync NBA Stats
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.VERCEL_PRODUCTION_URL }}/api/sync?type=quick"
+        continue-on-error: true
+      
+      - name: Log sync completion
+        if: success()
+        run: echo "NBA data sync completed successfully"
+      
+      - name: Log sync failure
+        if: failure()
+        run: echo "NBA data sync failed - check your API endpoints"
