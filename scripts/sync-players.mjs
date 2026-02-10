@@ -135,12 +135,12 @@ async function syncPlayers(season) {
     });
 
     const playerSql = `
-      INSERT INTO "Player" (id, "firstName", "lastName", "teamId", height, weight)
+      INSERT INTO "players" (id, "first_name", "last_name", "team_id", height, weight)
       VALUES ${playerValues.join(", ")}
       ON CONFLICT (id) DO UPDATE SET
-        "firstName" = EXCLUDED."firstName",
-        "lastName" = EXCLUDED."lastName",
-        "teamId" = EXCLUDED."teamId"
+        "first_name" = EXCLUDED."first_name",
+        "last_name" = EXCLUDED."last_name",
+        "team_id" = EXCLUDED."team_id"
     `;
 
     await prisma.$executeRawUnsafe(playerSql);
@@ -152,19 +152,19 @@ async function syncPlayers(season) {
     });
 
     const statsSql = `
-      INSERT INTO "PlayerStats" ("playerId", season, "gamesPlayed", ppg, rpg, apg, spg, bpg, topg, "fgPct", "threePct", "ftPct", mpg, fgm, fga, fg3m, fg3a, ftm, fta, oreb, dreb, pf)
+      INSERT INTO "player_stats" ("player_id", season, "games_played", ppg, rpg, apg, spg, bpg, topg, "fg_pct", "three_pct", "ft_pct", mpg, fgm, fga, fg3m, fg3a, ftm, fta, oreb, dreb, pf)
       VALUES ${statsValues.join(", ")}
-      ON CONFLICT ("playerId", season) DO UPDATE SET
-        "gamesPlayed" = EXCLUDED."gamesPlayed",
+      ON CONFLICT ("player_id", season) DO UPDATE SET
+        "games_played" = EXCLUDED."games_played",
         ppg = EXCLUDED.ppg,
         rpg = EXCLUDED.rpg,
         apg = EXCLUDED.apg,
         spg = EXCLUDED.spg,
         bpg = EXCLUDED.bpg,
         topg = EXCLUDED.topg,
-        "fgPct" = EXCLUDED."fgPct",
-        "threePct" = EXCLUDED."threePct",
-        "ftPct" = EXCLUDED."ftPct",
+        "fg_pct" = EXCLUDED."fg_pct",
+        "three_pct" = EXCLUDED."three_pct",
+        "ft_pct" = EXCLUDED."ft_pct",
         mpg = EXCLUDED.mpg,
         fgm = EXCLUDED.fgm,
         fga = EXCLUDED.fga,
