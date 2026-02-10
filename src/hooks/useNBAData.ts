@@ -602,15 +602,6 @@ export function useNBAOdds() {
   });
 }
 
-export function useNBAScores() {
-  return useQuery({
-    queryKey: ["scores", "nba"],
-    queryFn: fetchNBAScores,
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
-  });
-}
-
 // ---------- Award Predictions ----------
 
 import type { AwardCategory } from "@/lib/predictions";
