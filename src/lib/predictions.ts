@@ -497,8 +497,18 @@ export async function generateStatBasedPredictions(): Promise<{
  */
 export async function generateChampionshipPredictions(): Promise<AwardCandidate[]> {
   try {
+    // Skip during build time (no server running)
+    if (typeof window === "undefined" && !process.env.VERCEL_URL) {
+      return [];
+    }
+    
+    // Determine base URL
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    
     // Fetch current standings from our database
-    const standingsRes = await fetch("http://localhost:3000/api/db/teams/standings");
+    const standingsRes = await fetch(`${baseUrl}/api/db/teams/standings`);
     if (!standingsRes.ok) {
       console.error("Failed to fetch standings");
       return [];
@@ -507,7 +517,7 @@ export async function generateChampionshipPredictions(): Promise<AwardCandidate[
     const standings = standingsData.data || [];
     
     // Fetch team names
-    const teamsRes = await fetch("http://localhost:3000/api/db/teams");
+    const teamsRes = await fetch(`${baseUrl}/api/db/teams`);
     if (!teamsRes.ok) {
       console.error("Failed to fetch teams");
       return [];
