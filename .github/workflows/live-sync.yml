@@ -1,0 +1,33 @@
+name: Live Game Sync
+
+on:
+  schedule:
+    # Run every 2 minutes during typical NBA game hours (7 PM - 1 AM ET / 00:00 - 06:00 UTC)
+    - cron: '*/2 0-6 * * *'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  live-sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Refresh Live Scores Cache
+        run: |
+          # Hit the live scores endpoint to refresh cache
+          curl -X GET \
+            "${{ secrets.VERCEL_PRODUCTION_URL }}/api/live/scores" \
+            > /dev/null 2>&1
+        continue-on-error: true
+      
+      - name: Quick Sync Recent Games
+        run: |
+          # Run quick sync to update recent game data
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SYNC_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.VERCEL_PRODUCTION_URL }}/api/sync?type=quick" \
+            > /dev/null 2>&1
+        continue-on-error: true
+      
+      - name: Log completion
+        run: echo "Live game sync completed at $(date)"

@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/sync?type=quick",
-      "schedule": "0 0 * * *" 
-    },
-    {
-      "path": "/api/sync?type=full",
-      "schedule": "0 6 * * *"
-    }
-  ]
-}
+{}
