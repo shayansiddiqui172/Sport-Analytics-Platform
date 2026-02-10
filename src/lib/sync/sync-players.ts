@@ -156,217 +156,137 @@ async function fetchPlayerInfo(playerId: number): Promise<PlayerInfoRow | null> 
 }
 
 /**
- * Sync players and their season stats from NBA.com league leaders + dash stats.
- * This is the main player data source — it gives us IDs, names, teams, and stats.
+ * Sync players and their season stats from NBA.com.
+ * Uses a single API call to leaguedashplayerstats to get ALL active players.
  */
 export async function syncPlayers(
   season?: string
 ): Promise<{ players: number; stats: number }> {
   const seasonStr = season || getNBASeasonString();
 
-  // Step 1: Fetch league leaders (all qualified players ~230+)
-  const leagueLeadersUrl = `${NBA_STATS_BASE}/leagueleaders?LeagueID=00&PerMode=PerGame&Scope=S&Season=${seasonStr}&SeasonType=Regular%20Season&StatCategory=PTS`;
-  const leagueData = await fetchNBAStats(leagueLeadersUrl);
+  // Single API call to get ALL players + stats (no TeamID filter = all players)
+  const params = new URLSearchParams({
+    MeasureType: "Base",
+    PerMode: "PerGame",
+    Season: seasonStr,
+    SeasonType: "Regular Season",
+    LeagueID: "00",
+    PlusMinus: "N",
+    PaceAdjust: "N",
+    Rank: "N",
+    Outcome: "",
+    Location: "",
+    Month: "0",
+    SeasonSegment: "",
+    DateFrom: "",
+    DateTo: "",
+    OpponentTeamID: "0",
+    VsConference: "",
+    VsDivision: "",
+    GameSegment: "",
+    Period: "0",
+    ShotClockRange: "",
+    LastNGames: "0",
+  });
+  const dashUrl = `${NBA_STATS_BASE}/leaguedashplayerstats?${params}`;
+  const dashData = await fetchNBAStats(dashUrl);
+  const dashResultSet = dashData.resultSets?.[0] || dashData.resultSet;
 
-  const resultSet = leagueData.resultSet || leagueData.resultSets?.[0];
-  if (!resultSet) throw new Error("No resultSet in league leaders response");
+  if (!dashResultSet) throw new Error("No resultSet in leaguedashplayerstats response");
 
-  const leaders = rowsToObjects<LeagueLeaderRow>(
-    resultSet.headers,
-    resultSet.rowSet
+  const allPlayers = rowsToObjects<DashPlayerRow>(
+    dashResultSet.headers,
+    dashResultSet.rowSet
   );
 
-  // Step 2: Get unique team IDs and fetch dash stats for each (complete rosters)
-  const teamIds = [...new Set(leaders.map((p) => p.TEAM_ID))];
-  const allDashPlayers: DashPlayerRow[] = [];
+  console.log(`[sync-players] Fetched ${allPlayers.length} players from leaguedashplayerstats`);
 
-  for (const teamId of teamIds) {
-    try {
-      const params = new URLSearchParams({
-        MeasureType: "Base",
-        PerMode: "PerGame",
-        Season: seasonStr,
-        SeasonType: "Regular Season",
-        TeamID: teamId.toString(),
-        LeagueID: "00",
-        PlusMinus: "N",
-        PaceAdjust: "N",
-        Rank: "N",
-        Outcome: "",
-        Location: "",
-        Month: "0",
-        SeasonSegment: "",
-        DateFrom: "",
-        DateTo: "",
-        OpponentTeamID: "0",
-        VsConference: "",
-        VsDivision: "",
-        GameSegment: "",
-        Period: "0",
-        ShotClockRange: "",
-        LastNGames: "0",
-      });
-      const dashUrl = `${NBA_STATS_BASE}/leaguedashplayerstats?${params}`;
-      const dashData = await fetchNBAStats(dashUrl);
-      const dashResultSet = dashData.resultSets?.[0] || dashData.resultSet;
-      if (dashResultSet) {
-        const players = rowsToObjects<DashPlayerRow>(
-          dashResultSet.headers,
-          dashResultSet.rowSet
-        );
-        allDashPlayers.push(...players);
-      }
-      // Small delay to avoid rate limiting
-      await new Promise((r) => setTimeout(r, 600));
-    } catch (e) {
-      console.warn(`[sync-players] Failed to fetch dash stats for team ${teamId}:`, e);
-    }
-  }
-
-  // Step 3: Merge — dash players are the complete roster, leaders supplement
-  const playerMap = new Map<
-    number,
-    { name: string; teamId: number; teamAbbr: string; stats: DashPlayerRow | LeagueLeaderRow }
-  >();
-
-  // Add all dash players first (complete roster)
-  for (const p of allDashPlayers) {
-    playerMap.set(p.PLAYER_ID, {
-      name: p.PLAYER_NAME,
-      teamId: p.TEAM_ID,
-      teamAbbr: p.TEAM_ABBREVIATION,
-      stats: p,
-    });
-  }
-
-  // Fill in any leaders not captured by dash (edge case)
-  for (const p of leaders) {
-    if (!playerMap.has(p.PLAYER_ID)) {
-      playerMap.set(p.PLAYER_ID, {
-        name: p.PLAYER,
-        teamId: p.TEAM_ID,
-        teamAbbr: p.TEAM,
-        stats: p,
-      });
-    }
-  }
-
-  // Step 4: Upsert into DB
   let playerCount = 0;
   let statsCount = 0;
-  let profileCount = 0;
 
-  for (const [nbaId, entry] of playerMap) {
-    const nameParts = entry.name.split(" ");
+  for (const p of allPlayers) {
+    const nameParts = p.PLAYER_NAME.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
-    const s = entry.stats;
 
-    // Check if team exists in DB
     const teamExists = await prisma.team.findUnique({
-      where: { id: entry.teamId },
+      where: { id: p.TEAM_ID },
     });
 
-    // Fetch detailed player info for profile data
-    const playerInfo = await fetchPlayerInfo(nbaId);
-    await new Promise((r) => setTimeout(r, 150)); // Rate limit
-    
-    if (playerInfo) {
-      profileCount++;
-    }
-
-    // Upsert player — use NBA.com PLAYER_ID as the DB id
     await prisma.player.upsert({
-      where: { id: nbaId },
+      where: { id: p.PLAYER_ID },
       update: {
-        firstName: playerInfo?.FIRST_NAME || firstName,
-        lastName: playerInfo?.LAST_NAME || lastName,
-        teamId: teamExists ? entry.teamId : null,
-        position: playerInfo?.POSITION || null,
-        height: playerInfo?.HEIGHT || "",
-        weight: playerInfo?.WEIGHT || "",
-        jerseyNumber: playerInfo?.JERSEY || "",
-        college: playerInfo?.SCHOOL || "",
-        country: playerInfo?.COUNTRY || "",
-        draftYear: playerInfo?.DRAFT_YEAR ? parseInt(playerInfo.DRAFT_YEAR) : null,
-        draftRound: playerInfo?.DRAFT_ROUND ? parseInt(playerInfo.DRAFT_ROUND) : null,
-        draftNumber: playerInfo?.DRAFT_NUMBER ? parseInt(playerInfo.DRAFT_NUMBER) : null,
+        firstName,
+        lastName,
+        teamId: teamExists ? p.TEAM_ID : null,
       },
       create: {
-        id: nbaId,
-        firstName: playerInfo?.FIRST_NAME || firstName,
-        lastName: playerInfo?.LAST_NAME || lastName,
-        teamId: teamExists ? entry.teamId : null,
-        position: playerInfo?.POSITION || null,
-        height: playerInfo?.HEIGHT || "",
-        weight: playerInfo?.WEIGHT || "",
-        jerseyNumber: playerInfo?.JERSEY || "",
-        college: playerInfo?.SCHOOL || "",
-        country: playerInfo?.COUNTRY || "",
-        draftYear: playerInfo?.DRAFT_YEAR ? parseInt(playerInfo.DRAFT_YEAR) : null,
-        draftRound: playerInfo?.DRAFT_ROUND ? parseInt(playerInfo.DRAFT_ROUND) : null,
-        draftNumber: playerInfo?.DRAFT_NUMBER ? parseInt(playerInfo.DRAFT_NUMBER) : null,
+        id: p.PLAYER_ID,
+        firstName,
+        lastName,
+        teamId: teamExists ? p.TEAM_ID : null,
+        height: "",
+        weight: "",
       },
     });
     playerCount++;
 
-    // Upsert season stats
     await prisma.playerStats.upsert({
       where: {
-        playerId_season: { playerId: nbaId, season: seasonStr },
+        playerId_season: { playerId: p.PLAYER_ID, season: seasonStr },
       },
       update: {
-        gamesPlayed: s.GP,
-        ppg: s.PTS,
-        rpg: "REB" in s ? s.REB : (s as any).OREB + (s as any).DREB,
-        apg: s.AST,
-        spg: s.STL,
-        bpg: s.BLK,
-        topg: s.TOV,
-        fgPct: s.FG_PCT,
-        threePct: s.FG3_PCT,
-        ftPct: s.FT_PCT,
-        mpg: s.MIN,
-        fgm: s.FGM,
-        fga: s.FGA,
-        fg3m: s.FG3M,
-        fg3a: s.FG3A,
-        ftm: s.FTM,
-        fta: s.FTA,
-        oreb: s.OREB,
-        dreb: s.DREB,
-        pf: s.PF,
+        gamesPlayed: p.GP,
+        ppg: p.PTS,
+        rpg: p.REB,
+        apg: p.AST,
+        spg: p.STL,
+        bpg: p.BLK,
+        topg: p.TOV,
+        fgPct: p.FG_PCT,
+        threePct: p.FG3_PCT,
+        ftPct: p.FT_PCT,
+        mpg: p.MIN,
+        fgm: p.FGM,
+        fga: p.FGA,
+        fg3m: p.FG3M,
+        fg3a: p.FG3A,
+        ftm: p.FTM,
+        fta: p.FTA,
+        oreb: p.OREB,
+        dreb: p.DREB,
+        pf: p.PF,
       },
       create: {
-        playerId: nbaId,
+        playerId: p.PLAYER_ID,
         season: seasonStr,
-        gamesPlayed: s.GP,
-        ppg: s.PTS,
-        rpg: "REB" in s ? s.REB : (s as any).OREB + (s as any).DREB,
-        apg: s.AST,
-        spg: s.STL,
-        bpg: s.BLK,
-        topg: s.TOV,
-        fgPct: s.FG_PCT,
-        threePct: s.FG3_PCT,
-        ftPct: s.FT_PCT,
-        mpg: s.MIN,
-        fgm: s.FGM,
-        fga: s.FGA,
-        fg3m: s.FG3M,
-        fg3a: s.FG3A,
-        ftm: s.FTM,
-        fta: s.FTA,
-        oreb: s.OREB,
-        dreb: s.DREB,
-        pf: s.PF,
+        gamesPlayed: p.GP,
+        ppg: p.PTS,
+        rpg: p.REB,
+        apg: p.AST,
+        spg: p.STL,
+        bpg: p.BLK,
+        topg: p.TOV,
+        fgPct: p.FG_PCT,
+        threePct: p.FG3_PCT,
+        ftPct: p.FT_PCT,
+        mpg: p.MIN,
+        fgm: p.FGM,
+        fga: p.FGA,
+        fg3m: p.FG3M,
+        fg3a: p.FG3A,
+        ftm: p.FTM,
+        fta: p.FTA,
+        oreb: p.OREB,
+        dreb: p.DREB,
+        pf: p.PF,
       },
     });
     statsCount++;
   }
 
   console.log(
-    `[sync-players] Upserted ${playerCount} players (${profileCount} with profiles), ${statsCount} season stats`
+    `[sync-players] Upserted ${playerCount} players, ${statsCount} season stats`
   );
   return { players: playerCount, stats: statsCount };
 }
