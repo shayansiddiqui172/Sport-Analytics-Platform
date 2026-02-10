@@ -18,7 +18,7 @@ import {
   TeamLogo,
   PlayerHeadshot,
 } from "@/components/ui";
-import { useTeams, useGames, usePlayers, useTeamSeasonAverages } from "@/hooks/useNBAData";
+import { useTeams, useTeam, useGames, usePlayers, useTeamSeasonAverages } from "@/hooks/useNBAData";
 import { useFullTeamRoster } from "@/hooks/useNBAStats";
 import type { TeamRosterPlayer } from "@/lib/api/nba-stats";
 import { getTeamColor } from "@/lib/team-colors";
@@ -29,7 +29,7 @@ interface TeamPageClientProps {
   teamId: number;
 }
 
-export default function TeamPageClient({ teamId }: TeamPageClientProps) {
+export default function TeamPage Client({ teamId }: TeamPageClientProps) {
   const router = useRouter();
   const currentSeason = useMemo(() => getNBASeason(), []);
   const seasonString = useMemo(
@@ -47,17 +47,18 @@ export default function TeamPageClient({ teamId }: TeamPageClientProps) {
     [teamId, currentSeason]
   );
 
-  // Team metadata from Ball Don't Lie (should be instant if cached from teams list page)
-  const { data: teamsData, isLoading: teamLoading } = useTeams();
-  const team = teamsData?.data?.find((t) => t.id === teamId);
+  // Fetch team with full roster from DB (primary source)
+  const { data: teamData, isLoading: teamLoading } = useTeam(teamId);
+  const team = teamData?.data;
+  const dbRoster = team?.players || [];
 
-  // NBA.com roster (primary source)
+  // NBA.com roster (fallback)
   const { data: nbaRoster, isLoading: nbaRosterLoading } = useFullTeamRoster(
     team?.abbreviation || "",
     seasonString
   );
 
-  // BDL roster as parallel fallback (not sequential) — always fetch so it's ready
+  // BDL roster as final fallback
   const { data: bdlPlayersData, isLoading: bdlPlayersLoading } = usePlayers(
     team ? { team_ids: [teamId], per_page: 20 } : undefined
   );
@@ -68,11 +69,31 @@ export default function TeamPageClient({ teamId }: TeamPageClientProps) {
     currentSeason
   );
 
-  // Merge strategy — show NBA.com if available, else show BDL (even if NBA is still loading)
+  // Merge strategy — DB first, then NBA.com, then BDL
   const roster: any[] = useMemo(() => {
+    // 1. Try DB roster (synced by GitHub Actions)
+    if (dbRoster.length > 0) {
+      return dbRoster.map((p: any) => ({
+        playerId: p.id,
+        playerName: `${p.first_name} ${p.last_name}`,
+        gp: p.stats?.games_played || 0,
+        min: p.stats?.mpg || 0,
+        pts: p.stats?.ppg || 0,
+        reb: p.stats?.rpg || 0,
+        ast: p.stats?.apg || 0,
+        stl: p.stats?.spg || 0,
+        blk: p.stats?.bpg || 0,
+        tov: p.stats?.topg || 0,
+        fg_pct: p.stats?.fg_pct || 0,
+        fg3_pct: p.stats?.three_pct || 0,
+        ft_pct: p.stats?.ft_pct || 0,
+        source: "db",
+      }));
+    }
+
+    // 2. Fall back to NBA.com
     if (nbaRoster && nbaRoster.length > 0) {
       return nbaRoster.map((p) => ({
-        // NBA.com roster entries — numeric IDs
         playerId: p.playerId,
         playerName: p.playerName,
         gp: p.gp || 0,
@@ -90,11 +111,11 @@ export default function TeamPageClient({ teamId }: TeamPageClientProps) {
       }));
     }
 
+    // 3. Final fallback to BDL
     if (bdlPlayers.length > 0) {
       return bdlPlayers.map((p) => {
         const stats = bdlStatsMap?.get(p.id);
         return {
-          // Mark BDL players with a string ID to avoid collisions
           playerId: `bdl-${p.id}`,
           bdlId: p.id,
           playerName: `${p.first_name} ${p.last_name}`,
@@ -115,11 +136,12 @@ export default function TeamPageClient({ teamId }: TeamPageClientProps) {
     }
 
     return [];
-  }, [nbaRoster, bdlPlayers, bdlStatsMap]);
+  }, [dbRoster, nbaRoster, bdlPlayers, bdlStatsMap]);
 
   const rosterLoading =
-    (nbaRosterLoading && bdlPlayersLoading) ||
-    (nbaRosterLoading && bdlPlayers.length === 0);
+    teamLoading ||
+    (dbRoster.length === 0 && nbaRosterLoading && bdlPlayersLoading) ||
+    (dbRoster.length === 0 && nbaRosterLoading && bdlPlayers.length === 0);
 
   // Games from Ball Don't Lie
   const { data: gamesData, isLoading: gamesLoading } = useGames(gamesQueryParams);
