@@ -29,7 +29,7 @@ interface TeamPageClientProps {
   teamId: number;
 }
 
-export default function TeamPage Client({ teamId }: TeamPageClientProps) {
+export default function TeamPageClient({ teamId }: TeamPageClientProps) {
   const router = useRouter();
   const currentSeason = useMemo(() => getNBASeason(), []);
   const seasonString = useMemo(
