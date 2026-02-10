@@ -348,7 +348,7 @@ export default function TeamPageClient({ teamId }: TeamPageClientProps) {
                               className="flex items-center gap-3 flex-1 min-w-0 text-left group"
                             >
                               <PlayerHeadshot
-                                nbaPlayerId={player.source === "nba" ? player.playerId as number : null}
+                                nbaPlayerId={player.source === "bdl" ? null : player.playerId as number}
                                 firstName={player.playerName.split(" ")[0] || ""}
                                 lastName={player.playerName.split(" ").slice(1).join(" ") || ""}
                                 teamAbbreviation={team.abbreviation}
